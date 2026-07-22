@@ -37,23 +37,38 @@ def get_browser():
     return webdriver.Chrome(options=chrome_options)
 
 def complete_mission(driver):
-    print("⏳ Simulating human behavior (Scrolling)...")
-    # আস্তে আস্তে নিচে স্ক্রল করা
+    print("⏳ Simulating human behavior on mission page...")
+    
+    # ১. পেজে কোনো 'Start' টাইমার বাটন থাকলে সেটিতে ক্লিক করা
+    try:
+        start_btns = driver.find_elements(By.XPATH, "//*[text()='Start' or text()='START']")
+        for btn in start_btns:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                print("🎯 Clicked 'Start' timer button!")
+                time.sleep(2)
+                break
+    except:
+        pass
+
+    # ২. আস্তে আস্তে নিচে স্ক্রল করা
     for _ in range(4):
         driver.execute_script("window.scrollBy(0, 400);")
-        time.sleep(2)
+        time.sleep(2.5) # টাইমার শেষ হওয়ার জন্য একটু বেশি সময় দেওয়া
         
-    # পেজে 'Follow' বাটন আছে কি না চেক করা এবং ক্লিক করা
+    # ৩. পেজে 'Follow' বাটন আছে কি না চেক করা এবং ক্লিক করা
     try:
-        # கேস-ইনসেনসিটিভ ভাবে 'Follow' বাটন খোঁজার চেষ্টা
-        follow_btn = driver.find_element(By.XPATH, "//*[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'follow')]")
-        driver.execute_script("arguments[0].click();", follow_btn)
-        print("🎯 Found and clicked 'Follow' button!")
-        time.sleep(2)
+        follow_btns = driver.find_elements(By.XPATH, "//*[text()='Follow' or text()='FOLLOW' or text()='ফলো']")
+        for btn in follow_btns:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                print("🎯 Found and clicked 'Follow' button!")
+                time.sleep(2)
+                break
     except:
-        pass # ফলো বাটন না থাকলে স্কিপ করবে
+        pass 
         
-    # আবার আস্তে আস্তে উপরে ওঠা
+    # ৪. আবার আস্তে আস্তে উপরে ওঠা
     for _ in range(3):
         driver.execute_script("window.scrollBy(0, -500);")
         time.sleep(2)
@@ -62,10 +77,8 @@ def complete_mission(driver):
 def claim_daily_reward():
     driver = None
     try:
-        # বর্তমান সময় দিয়ে স্ক্রিনশটের নাম তৈরি করা
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         screenshot_name = f"daraz_status_{timestamp}.png"
-
         driver = get_browser()
         
         print("🍪 Setting up Daraz cookies...")
@@ -82,37 +95,70 @@ def claim_daily_reward():
         print("⏳ Waiting 7 seconds for page to load completely...")
         time.sleep(7) 
         
-        # ডেইলি চেক-ইন করা
-        print("🔍 Looking for 'Check-in' or 'Collect' button...")
+        # প্রথমে মেইন পেজে কোনো Start বাটন থাকলে ক্লিক করা (স্ক্রিনশটের মতো)
+        print("🔍 Checking for sticky 'Start' banner on main page...")
         try:
-            checkin_btn = WebDriverWait(driver, 10).until(
+            main_start_btns = driver.find_elements(By.XPATH, "//*[text()='Start' or text()='START']")
+            for btn in main_start_btns:
+                if btn.is_displayed():
+                    driver.execute_script("arguments[0].click();", btn)
+                    print("✅ Clicked main page 'Start' banner! Waiting 12 seconds...")
+                    time.sleep(12)
+                    break
+        except:
+            pass
+
+        # ডেইলি চেক-ইন
+        print("\n🔍 Looking for 'Check-in' or 'Collect' button...")
+        try:
+            checkin_btn = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Check-in') or contains(text(), 'Collect')]"))
             )
             driver.execute_script("arguments[0].click();", checkin_btn)
             print("✅ Clicked Daily Check-in button successfully!")
-            time.sleep(4) 
-        except Exception as e:
-            print("⚠️ Check-in button not found. Maybe already claimed today?")
+            time.sleep(3) 
+        except:
+            print("⚠️ Check-in button not found. Moving to missions...")
 
         # ডেইলি মিশন কমপ্লিট করা
-        print("\n🔍 Looking for Daily Missions ('Go' buttons)...")
+        print("\n🔍 Looking for Daily Missions...")
         try:
+            # Earn More বাটনে ক্লিক করে মিশন পপ-আপ ওপেন করা
+            earn_more = driver.find_elements(By.XPATH, "//*[contains(text(), 'Earn More')]")
+            for btn in earn_more:
+                if btn.is_displayed():
+                    driver.execute_script("arguments[0].click();", btn)
+                    print("✅ Clicked 'Earn More' to open mission list.")
+                    time.sleep(3)
+                    break
+
+            # পপ-আপের ভেতর দৃশ্যমান (Visible) Go বাটন খোঁজা
             go_buttons = driver.find_elements(By.XPATH, "//*[text()='Go' or text()='Go!']")
+            visible_go_btns = [b for b in go_buttons if b.is_displayed()]
             
-            if len(go_buttons) > 0:
-                print(f"🎯 Found {len(go_buttons)} missions. Starting automation...")
-                max_missions = min(len(go_buttons), 4) # একসাথে সর্বোচ্চ ৪টি মিশন করবে
+            if len(visible_go_btns) > 0:
+                print(f"🎯 Found {len(visible_go_btns)} visible missions.")
+                max_missions = min(len(visible_go_btns), 4) # ৪টি মিশন করবে
                 
                 for i in range(max_missions):
                     print(f"\n▶️ Starting Mission {i+1}...")
                     try:
-                        # প্রতিবার নতুন করে বাটন খুঁজতে হবে পেজ রিফ্রেশের কারণে
+                        # পপ-আপ ওপেন আছে কি না নিশ্চিত করা
+                        earn_more = driver.find_elements(By.XPATH, "//*[contains(text(), 'Earn More')]")
+                        for btn in earn_more:
+                            if btn.is_displayed():
+                                driver.execute_script("arguments[0].click();", btn)
+                                time.sleep(2)
+                                break
+                                
                         btns = driver.find_elements(By.XPATH, "//*[text()='Go' or text()='Go!']")
-                        if i < len(btns):
-                            driver.execute_script("arguments[0].click();", btns[i])
-                            time.sleep(5) # নতুন পেজ লোড হওয়ার সময়
+                        v_btns = [b for b in btns if b.is_displayed()]
+                        
+                        if i < len(v_btns):
+                            driver.execute_script("arguments[0].click();", v_btns[i])
+                            print("🚀 Navigated to mission page. Waiting for load...")
+                            time.sleep(5) 
                             
-                            # হিউম্যান সিমুলেশন (স্ক্রল ও ফলো) ফাংশন কল করা
                             complete_mission(driver)
                             
                             # মিশন শেষে আবার মূল কয়েন পেজে ফিরে আসা
@@ -121,17 +167,16 @@ def claim_daily_reward():
                     except Exception as ex:
                         print(f"⚠️ Could not complete mission {i+1}: {ex}")
             else:
-                print("🤷 No available 'Go' missions found right now.")
+                print("🤷 No visible 'Go' missions found right now.")
                 
         except Exception as e:
             print("⚠️ Mission automation encountered an issue.")
 
-        # কাজের শেষে ফাইনাল স্ক্রিনশট নেওয়া
         driver.save_screenshot(screenshot_name)
         print(f"\n📸 Saved final screenshot as '{screenshot_name}'.")
         
     except Exception as e:
-        print(f"❌ An error occurred: {e}")
+        print(f"❌ Critical error: {e}")
     finally:
         if driver:
             driver.quit()
@@ -139,6 +184,6 @@ def claim_daily_reward():
 
 if __name__ == "__main__":
     print("====================================")
-    print("   Daraz Smart Automation Bot Started     ")
+    print("   Daraz Smart Automation Bot v2    ")
     print("====================================")
     claim_daily_reward()
