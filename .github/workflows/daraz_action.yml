@@ -1,7 +1,10 @@
 name: Daraz Coin Claim Automation
 
 on:
-  workflow_dispatch: # আপাতত টেস্ট করার জন্য শুধু ম্যানুয়াল রান অপশন রাখলাম
+  schedule:
+    # প্রতিদিন বাংলাদেশ সময় সকাল ৬:১৩ মিনিটে (UTC 00:13) রান করবে
+    - cron: '13 0 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -36,5 +39,5 @@ jobs:
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add daraz_coin_page.png
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-added Daraz screenshot" && git push)
+          git add *.png
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-added Daraz mission screenshots" && git push)
