@@ -2,8 +2,8 @@ name: Daraz Coin Claim Automation
 
 on:
   schedule:
-    # প্রতিদিন বাংলাদেশ সময় সকাল ৬:১৩ মিনিটে (UTC 00:13) রান করবে
-    - cron: '13 0 * * *'
+    # প্রতিদিন বাংলাদেশ সময় সকাল ৬:২৭ মিনিটে (UTC 00:13) রান করবে
+    - cron: '27 0 * * *'
   workflow_dispatch:
 
 permissions:
