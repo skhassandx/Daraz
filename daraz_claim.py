@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium_stealth import stealth
 import time
 import datetime
+import random
 
 # ==========================================
 # 🔑 আপনার দেওয়া কুকিগুলোর ভ্যালু
@@ -25,23 +26,19 @@ DARAZ_COOKIES = [
 # ==========================================
 
 def get_browser():
-    print("🚀 Initializing Stealth Mobile Browser to bypass security...")
+    print("🚀 Initializing Stealth Mobile Browser...")
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
-    # অ্যান্টি-বট বাইপাস করার স্পেশাল কমান্ড
+    # অ্যান্টি-বট বাইপাস
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
-    
-    # ব্রাউজারকে একটি রিয়েল স্যামসাং (Samsung) মোবাইল হিসেবে সাজানো
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36")
     
     driver = webdriver.Chrome(options=chrome_options)
-    
-    # Stealth Mode অ্যাপ্লাই করা (যাতে দারাজ বুঝতে না পারে এটি বট)
     stealth(driver,
         languages=["en-US", "en"],
         vendor="Google Inc.",
@@ -50,27 +47,34 @@ def get_browser():
         renderer="Mali-G78",
         fix_hairline=True,
     )
-    
-    # মোবাইলের স্ক্রিন সাইজ সেট করা
     driver.set_window_size(412, 915)
     return driver
 
 def collect_rewards(driver):
-    print("🎁 Checking for any 'Claim' or 'Collect' buttons to grab points...")
+    """ক্লেম বা কালেক্ট বাটন খুঁজে ক্লিক করার স্মার্ট ফাংশন"""
+    print("🎁 Scanning for 'Claim' or 'Collect' buttons...")
     try:
-        claim_btns = driver.find_elements(By.XPATH, "//*[text()='Claim' or text()='Collect' or text()='CLAIM' or text()='COLLECT']")
+        # সব ধরণের ক্লেইম বাটন খোঁজার চেষ্টা
+        claim_btns = driver.find_elements(By.XPATH, "//*[translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')='claim' or translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')='collect']")
         visible_claims = [b for b in claim_btns if b.is_displayed()]
-        for btn in visible_claims:
-            driver.execute_script("arguments[0].click();", btn)
-            print("✅ Successfully claimed points!")
-            time.sleep(2)
-    except:
+        
+        if visible_claims:
+            for btn in visible_claims:
+                driver.execute_script("arguments[0].click();", btn)
+                print("✅ Jackpot! Successfully claimed points!")
+                time.sleep(2)
+        else:
+            print("⏳ No claimable points ready yet.")
+    except Exception as e:
         pass
 
-def complete_mission(driver):
-    print("⏳ Simulating human behavior on mission page...")
+def handle_smart_mission(driver, mission_title):
+    """মিশনের নাম পড়ে সিদ্ধান্ত নেওয়ার এআই লজিক"""
+    print(f"🧠 AI analyzing mission: '{mission_title}'")
+    
+    # ১. প্রথমে স্টার্ট বাটন খোঁজা
     try:
-        start_btns = driver.find_elements(By.XPATH, "//*[text()='Start' or text()='START']")
+        start_btns = driver.find_elements(By.XPATH, "//*[translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')='start']")
         for btn in start_btns:
             if btn.is_displayed():
                 driver.execute_script("arguments[0].click();", btn)
@@ -80,10 +84,43 @@ def complete_mission(driver):
     except:
         pass
 
-    for _ in range(5):
-        driver.execute_script("window.scrollBy(0, 400);")
-        time.sleep(3) 
+    # ২. লজিক অনুযায়ী কাজ করা
+    if "0/10" in mission_title or "explore to find" in mission_title.lower():
+        print("🕵️‍♂️ Detected 10-Item Browse Mission. Clicking random items...")
+        for i in range(11): # ১০-১১ বার স্ক্রল ও ক্লিক করবে
+            driver.execute_script("window.scrollBy(0, 300);")
+            time.sleep(2)
+            # পেজে থাকা যেকোনো লিংকে ক্লিক করার চেষ্টা (খুব সাবধানে)
+            try:
+                links = driver.find_elements(By.TAG_NAME, "a")
+                if links:
+                    random_link = random.choice(links)
+                    driver.execute_script("arguments[0].click();", random_link)
+                    time.sleep(3)
+                    driver.back() # ব্যাক করে আবার আগের পেজে আসবে
+                    time.sleep(2)
+            except:
+                pass
+            print(f"   -> Explored item {i+1}/10")
+            
+    elif "share" in mission_title.lower():
+        print("📤 Detected Share Mission. Searching for share icon...")
+        # শেয়ার বাটনে ক্লিক করার সিমুলেশন
+        for _ in range(4):
+            driver.execute_script("window.scrollBy(0, 400);")
+            time.sleep(3)
+            
+    elif "daraz land" in mission_title.lower() or "game" in mission_title.lower():
+        print("🎮 Detected Game Mission. Waiting 20 seconds...")
+        time.sleep(20) # গেম পেজে একটু বেশি সময় থাকতে হয়
         
+    else:
+        print("⏳ Standard Browse Mission. Scrolling for 15 seconds...")
+        for _ in range(5):
+            driver.execute_script("window.scrollBy(0, 400);")
+            time.sleep(3) 
+
+    # ৩. ফলো বাটন থাকলে ক্লিক করা
     try:
         follow_btns = driver.find_elements(By.XPATH, "//*[text()='Follow' or text()='FOLLOW' or text()='ফলো']")
         for btn in follow_btns:
@@ -95,9 +132,7 @@ def complete_mission(driver):
     except:
         pass 
         
-    for _ in range(3):
-        driver.execute_script("window.scrollBy(0, -500);")
-        time.sleep(2)
+    print("✅ Mission activity complete.")
 
 def claim_daily_reward():
     driver = None
@@ -117,21 +152,10 @@ def claim_daily_reward():
         
         print("🎯 Navigating to Coin Page...")
         driver.get(target_url)
-        print("⏳ Waiting 10 seconds to mimic human loading...")
         time.sleep(10) 
         
-        print("🔍 Checking for sticky 'Start' banner on main page...")
-        try:
-            main_start_btns = driver.find_elements(By.XPATH, "//*[text()='Start' or text()='START']")
-            for btn in main_start_btns:
-                if btn.is_displayed():
-                    driver.execute_script("arguments[0].click();", btn)
-                    print("✅ Clicked main page 'Start' banner! Waiting 12 seconds...")
-                    time.sleep(12)
-                    collect_rewards(driver)
-                    break
-        except:
-            pass
+        # প্রথমে জমে থাকা পয়েন্ট ক্লেইম করা
+        collect_rewards(driver)
 
         print("\n🔍 Looking for 'Check-in' button...")
         try:
@@ -150,22 +174,24 @@ def claim_daily_reward():
             for btn in earn_more:
                 if btn.is_displayed():
                     driver.execute_script("arguments[0].click();", btn)
-                    print("✅ Clicked 'Earn More' to open mission list.")
                     time.sleep(4)
                     break
             
+            # আবার ক্লেইম চেক
             collect_rewards(driver)
 
+            # Go এবং Go! দুটিই খুঁজবে
             go_buttons = driver.find_elements(By.XPATH, "//*[text()='Go' or text()='Go!']")
             visible_go_btns = [b for b in go_buttons if b.is_displayed()]
             
             if len(visible_go_btns) > 0:
                 print(f"🎯 Found {len(visible_go_btns)} visible missions.")
-                max_missions = min(len(visible_go_btns), 4) 
+                max_missions = min(len(visible_go_btns), 5) # ৫টি মিশন করবে
                 
                 for i in range(max_missions):
                     print(f"\n▶️ Starting Mission {i+1}...")
                     try:
+                        # মিশন লিস্ট পপ-আপ ওপেন করা
                         earn_more = driver.find_elements(By.XPATH, "//*[contains(text(), 'Earn More')]")
                         for btn in earn_more:
                             if btn.is_displayed():
@@ -173,6 +199,12 @@ def claim_daily_reward():
                                 time.sleep(2)
                                 break
                                 
+                        # প্রতিটি Go বাটনের আগের টেক্সট (মিশনের নাম) বের করা
+                        mission_blocks = driver.find_elements(By.XPATH, "//div[.//div[text()='Go' or text()='Go!']]")
+                        mission_title = "Unknown Mission"
+                        if i < len(mission_blocks):
+                            mission_title = mission_blocks[i].text.replace('\n', ' ')
+
                         btns = driver.find_elements(By.XPATH, "//*[text()='Go' or text()='Go!']")
                         v_btns = [b for b in btns if b.is_displayed()]
                         
@@ -180,12 +212,14 @@ def claim_daily_reward():
                             driver.execute_script("arguments[0].click();", v_btns[i])
                             time.sleep(6) 
                             
-                            complete_mission(driver)
+                            # স্মার্ট লজিক দিয়ে মিশন করা
+                            handle_smart_mission(driver, mission_title)
                             
                             print("🔙 Returning to Main Coin Page...")
                             driver.get(target_url)
                             time.sleep(8) 
                             
+                            # ফিরে আসার পর সাথে সাথেই পয়েন্ট ক্লেইম করা
                             earn_more = driver.find_elements(By.XPATH, "//*[contains(text(), 'Earn More')]")
                             for btn in earn_more:
                                 if btn.is_displayed():
